@@ -120,16 +120,6 @@ config :jndi_context, :validate => :hash
 
 			begin
 				@producer.send(@session.message(event.to_json))
-#				if @queue_name
-#					@jms_session_pool.producer(:queue_name => @queue_name) do |session, producer|
-#						producer.send(session.message("Hello World"))
-#					end
-#				else
-#					@jms_session_pool.producer(:topic_name => @topic_name) do |session, producer|
-#						producer.send(session.message("Hello World"))
-#					end
-#				end
-
 			rescue LogStash::ShutdownSignal => e
 				@producer.close()
 				@session.close()
