@@ -104,11 +104,8 @@ config :jndi_context, :validate => :hash
 		@session = @connection.create_session()
 
 		# Cache the producer since we should keep reusing this one.
-		if (@pub_sub)
-			@producer = @session.create_producer(@session.create_destination(:topic_name => @destination))
-		else
-			@producer = @session.create_producer(@session.create_destination(:queue_name => @destination))
-		end
+		destination_key = @pub_sub ? :topic_name : :queue_name
+		@producer = @session.create_producer(@session.create_destination(destination_key => @destination))
 
 		if !@delivery_mode.nil?
 			@producer.delivery_mode_sym = @deliver_mode
