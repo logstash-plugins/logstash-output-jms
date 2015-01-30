@@ -20,7 +20,7 @@ describe "outputs/jms" do
 
     it 'should populate jms config with default values' do
       jms = LogStash::Outputs::Jms.new(jms_config)
-      insist {jms.pub_sub} == false
+      expect(jms.pub_sub).to eq(false)
     end
   end
 
@@ -29,6 +29,7 @@ describe "outputs/jms" do
       jms = LogStash::Outputs::Jms.new(jms_config)
       jms.register
       jms.receive(event)
+      # Add code to check the message is correct on the queue.
     end
   end
 end

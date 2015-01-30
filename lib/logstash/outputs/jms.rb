@@ -20,15 +20,10 @@ require "logstash/namespace"
 #
 class LogStash::Outputs::Jms < LogStash::Outputs::Base
 	config_name "jms"
-	milestone 1
-
-# Initial connection timeout in seconds.
-config :timeout, :validate => :number, :default => 1000
 
 # Name of delivery mode to use
 # Options are "persistent" and "non_persistent" if not defined nothing will be passed.
-# TODO(AlphaCluster) need to reconfigure delivery mode
-#config :delivery_mode, :validate => :string, :default => nil
+config :delivery_mode, :validate => :string, :default => nil
 
 # If pub-sub (topic) style should be used or not.
 # Mandatory
@@ -117,13 +112,16 @@ config :jndi_context, :validate => :hash
 
 			begin
 				@producer.send(@session.message(event.to_json))
-			rescue LogStash::ShutdownSignal => e
-				@producer.close()
-				@session.close()
-				@connection.close()
 			rescue => e
 				@logger.warn("Failed to send event to JMS", :event => event, :exception => e,
 										 :backtrace => e.backtrace)
 			end
 	end # def receive
 end # class LogStash::Output::Jms
+
+def teardown
+  @producer.close()
+  @session.close()
+  @connection.close()
+  finished
+end
