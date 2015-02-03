@@ -7,19 +7,19 @@ require "logstash/namespace"
 # For more information about Jms, see <http://docs.oracle.com/javaee/6/tutorial/doc/bncdq.html>
 # For more information about the Ruby Gem used, see <http://github.com/reidmorrison/jruby-jms>
 # Here is a config example :
-#	 jms {
-#			include_header => false
-#			include_properties => false
-#			include_body => true
-#			use_jms_timestamp => false
-#			queue_name => "myqueue"
-#			yaml_file => "~/jms.yml"
-#			yaml_section => "mybroker"
-#		}
+#  jms {
+#     include_header => false
+#     include_properties => false
+#     include_body => true
+#     use_jms_timestamp => false
+#     queue_name => "myqueue"
+#     yaml_file => "~/jms.yml"
+#     yaml_section => "mybroker"
+#   }
 #
 #
 class LogStash::Outputs::Jms < LogStash::Outputs::Base
-	config_name "jms"
+  config_name "jms"
 
 # Name of delivery mode to use
 # Options are "persistent" and "non_persistent" if not defined nothing will be passed.
@@ -69,54 +69,54 @@ config :jndi_context, :validate => :hash
 #
 # For some known examples, see: [Example jms.yml](https://github.com/reidmorrison/jruby-jms/blob/master/examples/jms.yml)
 
-	public
-	def register
-		require "jms"
-		@connection = nil
+  public
+  def register
+    require "jms"
+    @connection = nil
 
-		if @yaml_file
-			@jms_config = YAML.load_file(@yaml_file)[@yaml_section]
+    if @yaml_file
+      @jms_config = YAML.load_file(@yaml_file)[@yaml_section]
 
-		elsif @jndi_name
-			@jms_config = {
-				:require_jars => @require_jars,
-				:jndi_name => @jndi_name,
-				:jndi_context => @jndi_context}
+    elsif @jndi_name
+      @jms_config = {
+        :require_jars => @require_jars,
+        :jndi_name => @jndi_name,
+        :jndi_context => @jndi_context}
 
-		elsif @factory
-			@jms_config = {
-				:require_jars => @require_jars,
-				:factory => @factory,
-				:username => @username,
-				:password => @password,
-				:broker_url => @broker_url,
-				:url => @broker_url # "broker_url" is named "url" with Oracle AQ
-				}
-		end
+    elsif @factory
+      @jms_config = {
+        :require_jars => @require_jars,
+        :factory => @factory,
+        :username => @username,
+        :password => @password,
+        :broker_url => @broker_url,
+        :url => @broker_url # "broker_url" is named "url" with Oracle AQ
+        }
+    end
 
-		@logger.debug("JMS Config being used", :context => @jms_config)
-		@connection = JMS::Connection.new(@jms_config)
-		@session = @connection.create_session()
+    @logger.debug("JMS Config being used", :context => @jms_config)
+    @connection = JMS::Connection.new(@jms_config)
+    @session = @connection.create_session()
 
-		# Cache the producer since we should keep reusing this one.
-		destination_key = @pub_sub ? :topic_name : :queue_name
-		@producer = @session.create_producer(@session.create_destination(destination_key => @destination))
+    # Cache the producer since we should keep reusing this one.
+    destination_key = @pub_sub ? :topic_name : :queue_name
+    @producer = @session.create_producer(@session.create_destination(destination_key => @destination))
 
-		if !@delivery_mode.nil?
-			@producer.delivery_mode_sym = @deliver_mode
-		end
-	end # def register
+    if !@delivery_mode.nil?
+      @producer.delivery_mode_sym = @deliver_mode
+    end
+  end # def register
 
-	def receive(event)
-			return unless output?(event)
+  def receive(event)
+      return unless output?(event)
 
-			begin
-				@producer.send(@session.message(event.to_json))
-			rescue => e
-				@logger.warn("Failed to send event to JMS", :event => event, :exception => e,
-										 :backtrace => e.backtrace)
-			end
-	end # def receive
+      begin
+        @producer.send(@session.message(event.to_json))
+      rescue => e
+        @logger.warn("Failed to send event to JMS", :event => event, :exception => e,
+                     :backtrace => e.backtrace)
+      end
+  end # def receive
 end # class LogStash::Output::Jms
 
 def teardown
