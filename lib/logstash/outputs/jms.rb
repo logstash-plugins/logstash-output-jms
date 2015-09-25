@@ -117,11 +117,10 @@ config :jndi_context, :validate => :hash
                      :backtrace => e.backtrace)
       end
   end # def receive
-end # class LogStash::Output::Jms
 
-def teardown
-  @producer.close()
-  @session.close()
-  @connection.close()
-  finished
-end
+  def close
+    @producer.close()
+    @session.close()
+    @connection.close()
+  end
+end # class LogStash::Output::Jms
