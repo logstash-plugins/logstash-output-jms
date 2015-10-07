@@ -108,7 +108,7 @@ config :jndi_context, :validate => :hash
   end # def register
 
   def receive(event)
-      return unless output?(event)
+      
 
       begin
         @producer.send(@session.message(event.to_json))
