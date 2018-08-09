@@ -103,7 +103,7 @@ config :jndi_context, :validate => :hash
     @producer = @session.create_producer(@session.create_destination(destination_key => @destination))
 
     if !@delivery_mode.nil?
-      @producer.delivery_mode_sym = @deliver_mode
+      @producer.delivery_mode_sym = @delivery_mode == "persistent" ? :persistent : :non_persistent
     end
   end # def register
 
