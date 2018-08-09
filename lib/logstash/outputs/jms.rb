@@ -23,7 +23,7 @@ class LogStash::Outputs::Jms < LogStash::Outputs::Base
 
 # Name of delivery mode to use
 # Options are "persistent" and "non_persistent" if not defined nothing will be passed.
-config :delivery_mode, :validate => :string, :default => nil
+config :delivery_mode, :validate => %w(persistent non_persistent)
 
 # If pub-sub (topic) style should be used or not.
 # Mandatory
@@ -102,9 +102,9 @@ config :jndi_context, :validate => :hash
     destination_key = @pub_sub ? :topic_name : :queue_name
     @producer = @session.create_producer(@session.create_destination(destination_key => @destination))
 
-    if !@delivery_mode.nil?
-      @producer.delivery_mode_sym = @deliver_mode
-    end
+    # If a delivery mode has been specified, inform the producer
+    @producer.delivery_mode_sym = @delivery_mode.to_sym unless @delivery_mode.nil?
+
   end # def register
 
   def receive(event)

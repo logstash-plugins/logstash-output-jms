@@ -1,3 +1,6 @@
+## 3.0.4
+  - Fixes an issue where `delivery_mode` directive was silently ignored.
+
 ## 3.0.3
   - Docs: Set the default_codec doc attribute.
 
