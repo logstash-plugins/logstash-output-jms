@@ -95,7 +95,18 @@ config :jndi_context, :validate => :hash
     end
 
     @logger.debug("JMS Config being used", :context => @jms_config)
-    @connection = JMS::Connection.new(@jms_config)
+    begin
+      # The jruby-jms adapter dynamically loads the Java classes that it extends, and may fail
+      @connection = JMS::Connection.new(@jms_config)
+    rescue NameError => ne
+      if @require_jars && !@require_jars.empty?
+        logger.warn('The `require_jars` directive was provided, but may not correctly map to a JNS provider', :require_jars => @require_jars)
+      end
+      logger.error('Failed to load JMS Connection, likely because a JMS Provider is not on the Logstash classpath '+
+                   'or correctly specified by the plugin\'s `require_jars` directive', :exception => ne.message, :backtrace => ne.backtrace)
+      fail(LogStash::PluginLoadingError, 'JMS Input failed to load, likely because a JMS provider was not available')
+    end
+
     @session = @connection.create_session()
 
     # Cache the producer since we should keep reusing this one.
