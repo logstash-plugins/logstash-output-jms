@@ -23,7 +23,7 @@ class LogStash::Outputs::Jms < LogStash::Outputs::Base
 
 # Name of delivery mode to use
 # Options are "persistent" and "non_persistent" if not defined nothing will be passed.
-config :delivery_mode, :validate => :string, :default => nil
+config :delivery_mode, :validate => %w(persistent non_persistent)
 
 # If pub-sub (topic) style should be used or not.
 # Mandatory
@@ -95,16 +95,27 @@ config :jndi_context, :validate => :hash
     end
 
     @logger.debug("JMS Config being used", :context => @jms_config)
-    @connection = JMS::Connection.new(@jms_config)
+    begin
+      # The jruby-jms adapter dynamically loads the Java classes that it extends, and may fail
+      @connection = JMS::Connection.new(@jms_config)
+    rescue NameError => ne
+      if @require_jars && !@require_jars.empty?
+        logger.warn('The `require_jars` directive was provided, but may not correctly map to a JNS provider', :require_jars => @require_jars)
+      end
+      logger.error('Failed to load JMS Connection, likely because a JMS Provider is not on the Logstash classpath '+
+                   'or correctly specified by the plugin\'s `require_jars` directive', :exception => ne.message, :backtrace => ne.backtrace)
+      fail(LogStash::PluginLoadingError, 'JMS Input failed to load, likely because a JMS provider was not available')
+    end
+
     @session = @connection.create_session()
 
     # Cache the producer since we should keep reusing this one.
     destination_key = @pub_sub ? :topic_name : :queue_name
     @producer = @session.create_producer(@session.create_destination(destination_key => @destination))
 
-    if !@delivery_mode.nil?
-      @producer.delivery_mode_sym = @deliver_mode
-    end
+    # If a delivery mode has been specified, inform the producer
+    @producer.delivery_mode_sym = @delivery_mode.to_sym unless @delivery_mode.nil?
+
   end # def register
 
   def receive(event)

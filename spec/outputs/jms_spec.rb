@@ -14,6 +14,7 @@ describe "outputs/jms" do
 
   context 'when initializing' do
     it "should register" do
+      pending('JMS Provider')
       output = LogStash::Plugin.lookup("output", "jms").new(jms_config)
       expect {output.register}.to_not raise_error
     end
@@ -26,6 +27,7 @@ describe "outputs/jms" do
 
   context 'when outputting messages' do
     it 'should send logstash event to jms queue' do
+      pending('JMS Provider')
       jms = LogStash::Outputs::Jms.new(jms_config)
       jms.register
       jms.receive(event)
