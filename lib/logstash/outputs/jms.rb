@@ -88,25 +88,7 @@ config :truststore_password, :validate => :password
       load_system_properties
     end
 
-    if @yaml_file
-      @jms_config = YAML.load_file(@yaml_file)[@yaml_section]
-
-    elsif @jndi_name
-      @jms_config = {
-        :require_jars => @require_jars,
-        :jndi_name => @jndi_name,
-        :jndi_context => @jndi_context}
-
-    elsif @factory
-      @jms_config = {
-        :require_jars => @require_jars,
-        :factory => @factory,
-        :username => @username,
-        :password => @password,
-        :broker_url => @broker_url,
-        :url => @broker_url # "broker_url" is named "url" with Oracle AQ
-        }
-    end
+    @jms_config = jms_config
 
     @logger.debug("JMS Config being used", :context => @jms_config)
     begin
@@ -130,7 +112,37 @@ config :truststore_password, :validate => :password
     # If a delivery mode has been specified, inform the producer
     @producer.delivery_mode_sym = @delivery_mode.to_sym unless @delivery_mode.nil?
 
-  end # def register
+  end
+# def register
+
+  def jms_config
+      return jms_config_from_yaml(@yaml_file, @yaml_section) if @yaml_file
+      return jms_config_from_jndi if @jndi_name
+      jms_config_from_configuration
+  end
+
+  def jms_config_from_configuration
+    {
+        :require_jars => @require_jars,
+        :factory => @factory,
+        :username => @username,
+        :password => @password,
+        :broker_url => @broker_url,
+        :url => @broker_url # "broker_url" is named "url" with Oracle AQ
+    }
+  end
+
+  def jms_config_from_jndi
+    {
+        :require_jars => @require_jars,
+        :jndi_name => @jndi_name,
+        :jndi_context => @jndi_context
+    }
+  end
+
+  def jms_config_from_yaml(file, section)
+    YAML.load_file(file)[section]
+  end
 
   def load_ssl_properties
 
@@ -156,8 +168,8 @@ config :truststore_password, :validate => :password
   end # def receive
 
   def close
-    @producer.close()
-    @session.close()
-    @connection.close()
+    @producer.close unless @producer.nil?
+    @session.close unless @session.nil?
+    @connection.close unless @connection.nil?
   end
 end # class LogStash::Output::Jms
