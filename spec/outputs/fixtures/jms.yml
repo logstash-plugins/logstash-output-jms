@@ -8,3 +8,13 @@ activemq:
   :factory: org.apache.activemq.ActiveMQConnectionFactory
   :require_jars:
     - activemq-all-5.15.8.jar
+
+activemq_tls:
+  :username: user
+  :password: password
+  :broker_url: ssl://localhost:61617
+  :pub_sub: true
+  :runner: consumer
+  :factory: org.apache.activemq.ActiveMQConnectionFactory
+  :require_jars:
+    - activemq-all-5.15.8.jar

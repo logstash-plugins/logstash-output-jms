@@ -2,5 +2,11 @@
 export ACTIVEMQ_VERSION=5.15.8
 ./setup_broker.sh
 bundle install
-bundle exec rspec && bundle exec rspec --tag integration
+bundle exec rspec
+./start_broker.sh
+bundle exec rspec -fd --tag integration --tag plaintext --tag ~tls
+./stop_broker.sh
+./start_ssl_broker.sh
+bundle exec rspec -fd --tag integration --tag tls --tag ~plaintext
+./stop_broker.sh
 ./teardown_broker.sh

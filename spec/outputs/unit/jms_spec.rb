@@ -7,7 +7,7 @@ describe "outputs/jms" do
 
   describe 'initialization' do
     let (:yaml_section) { 'activemq' }
-    let (:jms_config) {{'yaml_file' => yaml_path(file), 'yaml_section' => yaml_section, 'destination' => 'ExampleQueue'}}
+    let (:jms_config) {{'yaml_file' => fixture_path(file), 'yaml_section' => yaml_section, 'destination' => 'ExampleQueue'}}
 
     context 'via yaml file' do
       context 'simple yaml configuration' do

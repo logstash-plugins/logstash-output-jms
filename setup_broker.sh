@@ -11,4 +11,4 @@ curl -s -o activemq-all.jar http://central.maven.org/maven2/org/apache/activemq/
 mv activemq-all.jar ./spec/outputs/fixtures/
 curl -s -o activemq-bin.tar.gz  http://apache.mirrors.tds.net/activemq/$ACTIVEMQ_VERSION/apache-activemq-$ACTIVEMQ_VERSION-bin.tar.gz
 tar xvf activemq-bin.tar.gz
-apache-activemq-$ACTIVEMQ_VERSION/bin/activemq start
+mv apache-activemq-$ACTIVEMQ_VERSION activemq
