@@ -17,7 +17,7 @@ describe "outputs/jms" do
           jms = LogStash::Outputs::Jms.new(jms_config)
           expect(jms.jms_config).to include({:broker_url => "tcp://localhost:61616",
                                              :factory=>"org.apache.activemq.ActiveMQConnectionFactory",
-                                             :require_jars=>["activemq-all-5.15.8.jar"]})
+                                             :require_jars=>["activemq-all.jar"]})
         end
       end
 
