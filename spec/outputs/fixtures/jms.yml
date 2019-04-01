@@ -1,7 +1,7 @@
 ---
 activemq:
   :username: user
-  :password: password
+  :password: the_password
   :broker_url: tcp://localhost:61616
   :pub_sub: true
   :runner: consumer
@@ -11,7 +11,7 @@ activemq:
 
 activemq_tls:
   :username: user
-  :password: password
+  :password: the_password
   :broker_url: ssl://localhost:61617
   :pub_sub: true
   :runner: consumer

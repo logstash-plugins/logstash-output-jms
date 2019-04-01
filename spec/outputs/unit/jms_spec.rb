@@ -3,30 +3,41 @@ require 'logstash/outputs/jms'
 require 'jms'
 require 'json'
 
-describe "outputs/jms" do
+describe LogStash::Outputs::Jms do
 
   describe 'initialization' do
     let (:yaml_section) { 'activemq' }
     let (:jms_config) {{'yaml_file' => fixture_path(file), 'yaml_section' => yaml_section, 'destination' => 'ExampleQueue'}}
+    subject { described_class.new(jms_config)}
 
+    before :each do
+      allow(subject).to receive(:setup_producer)
+    end
     context 'via yaml file' do
       context 'simple yaml configuration' do
         let (:file) { "jms.yml" }
-
+        let (:password) { 'the_password' }
         it 'should populate jms config from the yaml file' do
-          jms = LogStash::Outputs::Jms.new(jms_config)
-          expect(jms.jms_config).to include({:broker_url => "tcp://localhost:61616",
+          expect(subject.jms_config).to include({:broker_url => "tcp://localhost:61616",
                                              :factory=>"org.apache.activemq.ActiveMQConnectionFactory",
+                                             :password => password,
                                              :require_jars=>["activemq-all.jar"]})
         end
+        it 'should not log the password in plaintext' do
+          expect(subject.logger).to receive(:debug) do |message, params|
+            expect(params[:context]).to include(:password)
+            expect(params[:context][:password]).not_to eq(password)
+          end
+          subject.register
+        end
+
       end
 
       context 'jndi yaml configuration' do
         let (:file) { "jndijms.yml" }
         let (:yaml_section) { 'solace' }
         it 'should populate jms config from the yaml file' do
-          jms = LogStash::Outputs::Jms.new(jms_config)
-          expect(jms.jms_config).to include({:jndi_context=>{
+          expect(subject.jms_config).to include({:jndi_context=>{
                                                   "java.naming.factory.initial"=>"com.solacesystems.jndi.SolJNDIInitialContextFactory",
                                                   "java.naming.security.principal"=>"username",
                                                   "java.naming.provider.url"=>"tcp://localhost:20608",
@@ -41,21 +52,29 @@ describe "outputs/jms" do
     end
 
     context 'simple configuration' do
+      let (:password) { 'the_password' }
       let (:jms_config) {{
                           'destination' => 'ExampleQueue',
                           'username' => 'user',
-                          'password' => 'the_password',
+                          'password' => password,
                           'broker_url' => 'tcp://localhost:61616',
                           'pub_sub' => true,
                           'factory' => 'org.apache.activemq.ActiveMQConnectionFactory',
                           'require_jars' => ['activemq-all-5.15.8.jar']
                           }}
       it 'should populate jms config from the configuration' do
-        jms = LogStash::Outputs::Jms.new(jms_config)
-        expect(jms.jms_config).to include({:broker_url => "tcp://localhost:61616",
+        expect(subject.jms_config).to include({:broker_url => "tcp://localhost:61616",
                                            :factory=>"org.apache.activemq.ActiveMQConnectionFactory",
                                            :require_jars=>["activemq-all-5.15.8.jar"]})
       end
+      it 'should not log the password in plaintext' do
+        expect(subject.logger).to receive(:debug) do |message, params|
+          expect(params[:context]).to include(:password)
+          expect(params[:context][:password]).not_to eq(password)
+        end
+        subject.register
+      end
+
     end
     context 'simple configuration with jndi' do
       let (:jms_config) {{
@@ -74,8 +93,7 @@ describe "outputs/jms" do
 
 
       it 'should populate jms config from the configuration' do
-        jms = LogStash::Outputs::Jms.new(jms_config)
-        expect(jms.jms_config).to include({:jndi_context=>{
+        expect(subject.jms_config).to include({:jndi_context=>{
             "java.naming.factory.initial"=>"com.solacesystems.jndi.SolJNDIInitialContextFactory",
             "java.naming.security.principal"=>"username",
             "java.naming.provider.url"=>"tcp://localhost:20608",

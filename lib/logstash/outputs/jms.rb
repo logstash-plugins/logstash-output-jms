@@ -84,7 +84,12 @@ config :truststore_password, :validate => :password
 
     @jms_config = jms_config
 
-    @logger.debug("JMS Config being used", :context => @jms_config)
+    logger.debug("JMS Config being used ", :context => obfuscate_jms_config(@jms_config))
+
+    setup_producer
+  end
+
+  def setup_producer
     begin
       # The jruby-jms adapter dynamically loads the Java classes that it extends, and may fail
       @connection = JMS::Connection.new(@jms_config)
@@ -93,8 +98,8 @@ config :truststore_password, :validate => :password
         logger.warn('The `require_jars` directive was provided, but may not correctly map to a JNS provider', :require_jars => @require_jars)
       end
       logger.error('Failed to load JMS Connection, likely because a JMS Provider is not on the Logstash classpath '+
-                   'or correctly specified by the plugin\'s `require_jars` directive', :exception => ne.message, :backtrace => ne.backtrace)
-      fail(LogStash::PluginLoadingError, 'JMS Input failed to load, likely because a JMS provider was not available')
+                       'or correctly specified by the plugin\'s `require_jars` directive', :exception => ne.message, :backtrace => ne.backtrace)
+      fail(LogStash::PluginLoadingError, 'JMS Output plugin failed to load, likely because a JMS provider was not available')
     end
 
     @session = @connection.create_session()
@@ -105,9 +110,18 @@ config :truststore_password, :validate => :password
 
     # If a delivery mode has been specified, inform the producer
     @producer.delivery_mode_sym = @delivery_mode.to_sym unless @delivery_mode.nil?
-
   end
+
 # def register
+
+
+  def obfuscate_jms_config(config)
+    config.each_with_object({}) { |(k, v), h| h[k] = obfuscatable?(k) ? 'xxxxx' : v }
+  end
+
+  def obfuscatable?(setting)
+    [:password, :keystore_password, :truststore_password].include?(setting)
+  end
 
   def jms_config
       return jms_config_from_yaml(@yaml_file, @yaml_section) if @yaml_file
