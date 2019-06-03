@@ -23,19 +23,222 @@ include::{include_path}/plugin_header.asciidoc[]
 
 Write events to a Jms Broker. Supports both Jms Queues and Topics.
 
-For more information about Jms, see <http://docs.oracle.com/javaee/6/tutorial/doc/bncdq.html>
+For more information about Jms, see <https://javaee.github.io/tutorial/jms-concepts.html>
 For more information about the Ruby Gem used, see <http://github.com/reidmorrison/jruby-jms>
-Here is a config example :
+
+JMS configurations can be done either entirely in the Logstash configuration file, or in a mixture of the Logstash
+  configuration file, and a specified yaml file. Simple configurations that do not need to make calls to implementation
+  specific methods on the connection factory can be specified entirely in the Logstash configuration, whereas more complex
+  configurations, should also use the combination of yaml file and Logstash configuration.
+
+
+==== Common Configuration Options
+
+Here is a config example to write to a queue:
  jms {
-    include_header => false
-    include_properties => false
-    include_body => true
-    use_jms_timestamp => false
-    queue_name => "myqueue"
-    yaml_file => "~/jms.yml"
-    yaml_section => "mybroker"
+    broker_url => 'ssl://localhost:61617' <1>
+    destination => "myqueue" <2>
+    pub-sub => false <3>
+    username => <4>
+    password => <4>
+    keystore => <5>
+    keystore_password => <5>
+    truststore => <5>
+    truststore_password => <5>
   }
 
+<1> Url of the broker to connect to. Please consult your JMS provider documentation for the exact syntax to use
+    here, including how to enable failover.
+<2> Name of the topic or queue that the plugin will publish events to.
+<3> Determines whether the event source is a queue or a topic, set to `true` for topic, `false` for queue.
+<4> Credentials to use when connecting to the JMS provider, if required.
+<5> Keystore and Truststore to use when connecting to the JMS provider, if required.
+
+
+
+==== Logstash Configuration
+
+
+===== Sample Configuration for Non-JNDI Connection
+[source,ruby]
+--------------------------------------------------
+ jms {
+    destination => "myqueue" <1>
+    pub-sub => false <1>
+    username => xxxx <2>
+    password => xxxx <2>
+    factory => org.apache.activemq.ActiveMQConnectionFactory <3>
+    require_jars => ['/usr/share/jms/activemq-all-5.15.9.jar','/usr/share/jms/log4j-1.2.17.jar'] <4>
+  }
+--------------------------------------------------
+
+<1> Configuration settings
+<2> Username and password for the connection.
+<3> Full name (including package name) of Java connection factory used to create a connection with your JMS provider.
+<4> List of jars required by the JMS provider. Paths should be the fully qualified location of all jar files required
+     by the JMS provider. This list may also include dependent jars as well as specific jars from the JMS provider.
+
+
+===== Sample Configuration for JNDI Connection
+[source,ruby]
+--------------------------------------------------
+ jms {
+    destination => "myqueue" <1>
+    pub-sub => false <1>
+    jndi_name => /jms/cf/default <2>
+    jndi_context => {
+     'java.naming.factory.initial' => com.solacesystems.jndi.SolJNDIInitialContextFactory
+     'java.naming.security.principal' => solace-cloud-client@user
+     'java.naming.provider.url' => tcp://address.messaging.solace.cloud:20608
+     'java.naming.security.credentials' => verysecret
+    } <3>
+    require_jars=> ['/usr/share/jms/commons-lang-2.6.jar',
+                    '/usr/share/jms/sol-jms-10.5.0.jar',
+                    '/usr/share/jms/geronimo-jms_1.1_spec-1.1.1.jar',
+                    '/usr/share/jms/commons-lang-2.6.jar]' <4>
+  }
+--------------------------------------------------
+
+<1> Configuration settings
+<2> Username and password for the connection.
+<3> JNDI context settings hash. Contains details of how to connect to JNDI server. See your JMS provider documentation for
+     implementation specific details.
+<4> List of jars required by the JMS provider. Paths should be the fully qualified location of all jar files required
+     by the JMS provider. This list may also include dependent jars as well as specific jars from the JMS provider.
+
+==== Logstash Configuration and Yaml File
+
+
+How you configure the `yaml` file depends on whether the connection is via JNDI:
+
+
+===== Sample Configuration for Non-JNDI Connection
+
+
+====== Logstash Configuration
+
+[source,ruby]
+--------------------------------------------------
+ jms {
+    destination => "myqueue" <1>
+    pub-sub => false <1>
+    username => xxxx <2>
+    password => xxxx <2>
+    yaml_file => "~/jms.yml"  <3>
+    yaml_section => "mybroker" <4>
+  }
+--------------------------------------------------
+
+
+<1> Configuration settings
+<2> Username and password for the connection.
+<3> Full path to a yaml file containing the definition for the ConnectionFactory.
+<4> Section name in the yaml file of the ConnectionFactory for this plugin definition
+
+
+====== YAML File Configuration
+
+[source,yaml]
+--------------------------------------------------
+mybroker: <1>
+  :factory: org.apache.activemq.ActiveMQConnectionFactory <2>
+  :send_timeout: 30000 <3>
+  :stats_enabled: true <3>
+  :require_jars: <4>
+    - /usr/share/jms/activemq-all-5.15.9.jar
+    - /usr/share/jms/log4j-1.2.17.jar
+--------------------------------------------------
+
+ <1> Section name for this broker definition. This should be the value of `yaml_section` in the logstash configuration file.
+ <2> Full name (including package name) of Java connection factory used to create a connection with your JMS provider.
+ <3> Implementation specific configuration parameters to be used with the connection factory specified
+   in <2>. Each JMS Provider will have its own set of parameters that can be used here. These parameters are mapped to
+   `set` methods on the provided connection factory, and can be supplied in either 'snake' or 'camel' case. In <3> above,
+   the `send_timeout` property will call the `setSendTimeout` on the supplied connection factory. See your JMS provider
+   documentation for implementation specific details.
+ <4> List of jars required by the JMS provider. Paths should be the fully qualified location of all jar files required
+     by the JMS provider. This list may also include dependent jars as well as specific jars from the JMS provider.
+
+===== Sample Configuration for JNDI Connection
+
+The JMS plugin also supports connecting to brokers using JNDI. Configuration can be done either using a yaml file, or
+ via the logstash configuration:
+
+====== Logstash Configuration
+
+[source,ruby]
+--------------------------------------------------
+ jms {
+    destination => "myqueue" <1>
+    pub-sub => false <1>
+    yaml_file => "~/jms.yml"  <2>
+    yaml_section => "mybroker" <3>
+  }
+--------------------------------------------------
+
+<1> Configuration settings
+<2> Full path to a yaml file containing the definition for the ConnectionFactory.
+<3> Section name in the yaml file of the ConnectionFactory for this plugin definition
+
+====== YAML File Configuration
+
+[source,yaml]
+--------------------------------------------------
+
+solace: <1>
+  :jndi_name: /jms/cf/default <2>
+  :jndi_context: <3>
+    java.naming.factory.initial: com.solacesystems.jndi.SolJNDIInitialContextFactory
+    java.naming.security.principal: solace-cloud-client@user
+    java.naming.provider.url: tcp://address.messaging.solace.cloud:20608
+    java.naming.security.credentials: verysecret
+  :require_jars: <4>
+    - /usr/share/jms/commons-lang-2.6.jar
+    - /usr/share/jms/sol-jms-10.5.0.jar
+    - /usr/share/jms/geronimo-jms_1.1_spec-1.1.1.jar
+    - /usr/share/jms/commons-lang-2.6.jar
+
+--------------------------------------------------
+
+<1> Section name for this broker definition. This should be the value of `yaml_section` in the Logstash configuration file.
+<2> Name of JNDI entry at which the Factory can be found
+<3> JNDI context settings. Contains details of how to connect to JNDI server. See your JMS provider documentation for
+     implementation specific details.
+<4> List of jars required by the JMS provider. Paths should be the fully qualified location of all jar files required
+     by the JMS provider. This list may also include dependent jars as well as specific jars from the JMS provider.
+
+
+==== Jar files
+
+In order to communicate with a JMS broker, the plugin must load the jar files necessary for each client type.
+This can be set in the yaml file, or in the main configuration if a yaml file is not necessary. The `require_jars`
+  setting should include the full path for each jar file required for the client. Eg
+
+logstash configuration:
+
+  jms {
+          :
+          [snip]
+     require_jars => ['/usr/share/jms/commons-lang-2.6.jar',
+                      '/usr/share/jms/sol-jms-10.5.0.jar',
+                      '/usr/share/jms/geronimo-jms_1.1_spec-1.1.1.jar',
+                      '/usr/share/jms/commons-lang-2.6.jar']
+
+  }
+
+===== Setting System Properties
+
+Many JMS providers allow or expect System properties to be set to configure certain properties when using JMS, for
+example, the Apache qpid JMS client allows the connection factory lookup to be stored there, and the Solace JMS client
+allows many properties, such as number of connection retries to be set as System properties. Any system properties that
+are set should be set in the Logstash `jvm.options` file.
+
+===== Multiple JMS inputs/outputs in the same Logstash process
+
+The use of multiple JMS consumers and producers in the same Logstash process is unsupported if:
+
+  * System properties need to be different for any of the consumers/producers
+  * Different keystores or truststores are required for any of the consumers/producers
 
 
 [id="plugins-{type}s-{plugin}-options"]
@@ -84,7 +287,8 @@ Url to use when connecting to the JMS provider
   * Default value is `nil`
 
 Name of delivery mode to use
-Options are "persistent" and "non_persistent" if not defined nothing will be passed.
+Options are "persistent" and "non_persistent" if not defined, nothing will be passed and the default delivery
+ mode will be used.
 
 [id="plugins-{type}s-{plugin}-destination"]
 ===== `destination` 
@@ -101,7 +305,7 @@ Mandatory
   * Value type is <<string,string>>
   * There is no default value for this setting.
 
-Name of JMS Provider Factory class
+Full name (including package name) of Java connection factory used to create a connection with your JMS provider.
 
 [id="plugins-{type}s-{plugin}-jndi_context"]
 ===== `jndi_context` 
@@ -160,10 +364,8 @@ Mandatory
   * Value type is <<array,array>>
   * There is no default value for this setting.
 
-If you do not use an yaml configuration use either the factory or jndi_name.
-An optional array of Jar file names to load for the specified
-JMS provider. By using this option it is not necessary
-to put all the JMS Provider specific jar files into the
+An optional array of Jar file names to load for the specified JMS provider.
+By using this option it is not necessary to put all the JMS Provider specific jar files into the
 java CLASSPATH prior to starting Logstash.
 
 [id="plugins-{type}s-{plugin}-truststore"]
@@ -180,7 +382,7 @@ If you need to use a custom truststore (`.jks`) specify it here. This does not w
   * Value type is <<password,password>>
   * There is no default value for this setting.
 
-Specify the truststore password here.
+Specify the truststore password here. This setting is only used if `truststore` is set.
 Note, most .jks files created with keytool require a password.
 
 
