@@ -95,14 +95,18 @@ config :truststore_password, :validate => :password
       @connection = JMS::Connection.new(@jms_config)
     rescue NameError => ne
       if @require_jars && !@require_jars.empty?
-        logger.warn('The `require_jars` directive was provided, but may not correctly map to a JNS provider', :require_jars => @require_jars)
+        logger.warn('The `require_jars` directive was provided, but may not correctly map to a JMS provider', :require_jars => @require_jars)
       end
       logger.error('Failed to load JMS Connection, likely because a JMS Provider is not on the Logstash classpath '+
                        'or correctly specified by the plugin\'s `require_jars` directive', :exception => ne.message, :backtrace => ne.backtrace)
-      fail(LogStash::PluginLoadingError, 'JMS Output plugin failed to load, likely because a JMS provider was not available')
+      fail(LogStash::PluginLoadingError, 'JMS Output plugin failed to load, likely because a JMS provider is not on the Logstash classpath')
+    rescue => e
+      logger.error("Unable to connect to JMS Provider. Retrying", error_hash(e))
+      sleep(5)
+      retry
     end
 
-    @session = @connection.create_session()
+    @session = @connection.create_session
 
     # Cache the producer since we should keep reusing this one.
     destination_key = @pub_sub ? :topic_name : :queue_name
@@ -161,16 +165,55 @@ config :truststore_password, :validate => :password
 
   def receive(event)
       begin
-        @producer.send(@session.message(event.to_json))
-      rescue => e
-        @logger.warn("Failed to send event to JMS", :event => event, :exception => e,
-                     :backtrace => e.backtrace)
+        mess = @session.message(event.to_json)
+        @producer.send(mess)
+      rescue Object => e
+        @logger.warn("Failed to send event to JMS", {:event => event}.merge(error_hash(e)))
+        cleanup_producer
+        setup_producer
+        retry
       end
   end # def receive
 
-  def close
+  def cleanup_producer
     @producer.close unless @producer.nil?
     @session.close unless @session.nil?
     @connection.close unless @connection.nil?
   end
+
+  def close
+    cleanup_producer
+  end
+
+  def error_hash(e)
+    error_hash = {:exception => e}#, :backtrace => e.backtrace}
+    root_cause = get_root_cause(e)
+    unless root_cause.nil?
+      error_hash.merge!(:root_cause => root_cause)
+    end
+    error_hash
+  end
+
+# JMS Exceptions can contain chains of Exceptions, making it difficult to determine the root cause of an error
+# without knowing the actual root cause behind the problem.
+# This method protects against Java Exceptions where the cause methods loop.
+  def get_root_cause(e)
+    return nil unless e.respond_to?(:get_cause)
+    cause = e
+    slow = e
+    # Use a slow pointer to avoid cause loops in Java Exceptions
+    move_slow = false
+    until (next_cause = cause.get_cause).nil?
+      cause = next_cause
+      if cause == slow
+        return cause
+      end
+
+      if move_slow
+        slow = slow.cause
+      end
+    end
+    cause
+  end
+
 end # class LogStash::Output::Jms
