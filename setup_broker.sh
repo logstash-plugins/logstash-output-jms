@@ -4,7 +4,7 @@ set -e
 if [ -n "${ACTIVEMQ_VERSION+1}" ]; then
   echo "ACTIVEMQ_VERSION is $ACTIVEMQ_VERSION"
 else
-   ACTIVEMQ_VERSION=5.15.8
+   ACTIVEMQ_VERSION=5.15.9
 fi
 
 curl -s -o activemq-all.jar http://central.maven.org/maven2/org/apache/activemq/activemq-all/$ACTIVEMQ_VERSION/activemq-all-$ACTIVEMQ_VERSION.jar
