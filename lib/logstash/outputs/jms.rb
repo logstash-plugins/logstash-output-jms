@@ -77,7 +77,6 @@ config :truststore_password, :validate => :password
 
   public
   def register
-    puts "testing register"
     require "jms"
     @connection = nil
 
@@ -85,11 +84,9 @@ config :truststore_password, :validate => :password
 
     @jms_config = jms_config
 
-    logger.warn("JMS Config being used ", :context => obfuscate_jms_config(@jms_config))
+    logger.debug("JMS Config being used ", :context => obfuscate_jms_config(@jms_config))
 
-    
     setup_producer
-    puts "successful registration"
   end
 
   def setup_producer
@@ -167,8 +164,6 @@ config :truststore_password, :validate => :password
   end
 
   def receive(event)
-      puts "received evnt #{event}"
-      logger.warn("Received Event", {:event => event})
       begin
         mess = @session.message(event.to_json)
         @producer.send(mess)
@@ -191,7 +186,7 @@ config :truststore_password, :validate => :password
   end
 
   def error_hash(e)
-    error_hash = {:exception => e}#, :backtrace => e.backtrace}
+    error_hash = {:exception => e.class.name, :exception_message => e.message, :backtrace => e.backtrace}
     root_cause = get_root_cause(e)
     unless root_cause.nil?
       error_hash.merge!(:root_cause => root_cause)
@@ -199,26 +194,23 @@ config :truststore_password, :validate => :password
     error_hash
   end
 
-# JMS Exceptions can contain chains of Exceptions, making it difficult to determine the root cause of an error
-# without knowing the actual root cause behind the problem.
-# This method protects against Java Exceptions where the cause methods loop.
+  # JMS Exceptions can contain chains of Exceptions, making it difficult to determine the root cause of an error
+  # without knowing the actual root cause behind the problem.
+  # This method protects against Java Exceptions where the cause methods loop. If there is a cause loop, the last
+  # cause exception before the loop is detected will be returned, along with an entry in the root_cause hash indicating
+  # that an exception loop was detected.
   def get_root_cause(e)
-    return nil unless e.respond_to?(:get_cause)
+    return nil unless e.respond_to?(:get_cause) && !e.get_cause.nil?
     cause = e
-    slow = e
+    slow_pointer = e
     # Use a slow pointer to avoid cause loops in Java Exceptions
     move_slow = false
     until (next_cause = cause.get_cause).nil?
       cause = next_cause
-      if cause == slow
-        return cause
-      end
-
-      if move_slow
-        slow = slow.cause
-      end
+      return {:exception => cause.class.name, :exception_message => cause.message, :exception_loop => true } if cause == slow_pointer
+      slow_pointer = slow_pointer.cause if move_slow
+      move_slow = !move_slow
     end
-    cause
+    {:exception => cause.class.name, :exception_message => cause.message }
   end
-
 end # class LogStash::Output::Jms
