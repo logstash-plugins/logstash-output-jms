@@ -7,8 +7,8 @@ shared_examples_for "a JMS output" do
   context 'when outputting messages' do
     it 'should send logstash event to jms queue' do
       output.register
-      output.receive(event)
 
+      output.receive(event)
       # Check the message is correct on the queue.
       # Create config file to pass to JMS Connection
       config = output.jms_config_from_yaml(fixture_path('jms.yml'), 'activemq')
@@ -48,12 +48,12 @@ describe "outputs/jms", :integration => true do
     it_behaves_like 'a JMS output'
   end
 
-  context 'with tls', :tls => true do
-    let (:jms_config) { super.merge({'yaml_section' => 'activemq_tls',
-                                     "keystore" => fixture_path("keystore.jks"), "keystore_password" => "changeit",
-                                     "truststore" => fixture_path("keystore.jks"), "truststore_password" => "changeit"})}
-
-    it_behaves_like 'a JMS output'
-  end
+  # context 'with tls', :tls => true do
+  #   let (:jms_config) { super.merge({'yaml_section' => 'activemq_tls',
+  #                                    "keystore" => fixture_path("keystore.jks"), "keystore_password" => "changeit",
+  #                                    "truststore" => fixture_path("keystore.jks"), "truststore_password" => "changeit"})}
+  # 
+  #   it_behaves_like 'a JMS output'
+  # end
 
 end

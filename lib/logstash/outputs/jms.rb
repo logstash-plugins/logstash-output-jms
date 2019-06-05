@@ -77,6 +77,7 @@ config :truststore_password, :validate => :password
 
   public
   def register
+    puts "testing register"
     require "jms"
     @connection = nil
 
@@ -84,9 +85,11 @@ config :truststore_password, :validate => :password
 
     @jms_config = jms_config
 
-    logger.debug("JMS Config being used ", :context => obfuscate_jms_config(@jms_config))
+    logger.warn("JMS Config being used ", :context => obfuscate_jms_config(@jms_config))
 
+    
     setup_producer
+    puts "successful registration"
   end
 
   def setup_producer
@@ -164,11 +167,13 @@ config :truststore_password, :validate => :password
   end
 
   def receive(event)
+      puts "received evnt #{event}"
+      logger.warn("Received Event", {:event => event})
       begin
         mess = @session.message(event.to_json)
         @producer.send(mess)
       rescue Object => e
-        @logger.warn("Failed to send event to JMS", {:event => event}.merge(error_hash(e)))
+        logger.warn("Failed to send event to JMS", {:event => event}.merge(error_hash(e)))
         cleanup_producer
         setup_producer
         retry
