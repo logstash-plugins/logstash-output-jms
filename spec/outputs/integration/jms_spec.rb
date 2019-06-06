@@ -6,7 +6,7 @@ require 'json'
 
 shared_examples_for "a JMS output" do
   context 'when outputting messages' do
-    let(:messages) { retrieve_messages_from_queue }
+    let(:messages) { retrieve_messages_from_queue(yaml_section) }
     before :each do
       output.register
       output.receive(event)
@@ -26,7 +26,6 @@ shared_examples_for "a JMS output" do
           it "should set the delivery mode to #{delivery_mode}" do
             # Check the message is correct on the queue.
             # Create config file to pass to JMS Connection
-            messages = retrieve_messages_from_queue
             expect(messages.size).to eql 1
             expect(messages.first.jms_delivery_mode_sym).to eql(delivery_mode.to_sym)
           end
@@ -38,7 +37,6 @@ shared_examples_for "a JMS output" do
       it "jms_expiration should be 0" do
         # Check the message is correct on the queue.
         # Create config file to pass to JMS Connection
-        messages = retrieve_messages_from_queue
         expect(messages.size).to eql 1
         expect(messages.first.jms_expiration).to eql(0)
       end
@@ -50,7 +48,6 @@ shared_examples_for "a JMS output" do
       it "jms_expiration should be jms_timestamp + ttl" do
         # Check the message is correct on the queue.
         # Create config file to pass to JMS Connection
-        messages = retrieve_messages_from_queue
         expect(messages.size).to eql 1
         expect(messages.first.jms_expiration).to eql(messages.first.jms_timestamp + 20000)
       end
@@ -63,7 +60,6 @@ shared_examples_for "a JMS output" do
       it "jms_priority header should be set" do
         # Check the message is correct on the queue.
         # Create config file to pass to JMS Connection
-        messages = retrieve_messages_from_queue
         expect(messages.size).to eql 1
         expect(messages.first.jms_priority).to eql(8)
       end
@@ -74,7 +70,8 @@ end
 
 
 describe "outputs/jms", :integration => true do
-  let (:jms_config) {{'yaml_file' => fixture_path("jms.yml"), 'yaml_section' => 'activemq', 'destination' => 'ExampleQueue'}}
+  let (:yaml_section) { 'activemq' }
+  let (:jms_config) {{'yaml_file' => fixture_path("jms.yml"), 'yaml_section' => yaml_section, 'destination' => 'ExampleQueue'}}
   let (:event) { LogStash::Event.new({'message' => 'hello',
                                       '@timestamp' => LogStash::Timestamp.now}) }
   let(:output) { LogStash::Plugin.lookup("output", "jms").new(jms_config) }
@@ -96,8 +93,8 @@ describe "outputs/jms", :integration => true do
   end
 
   context 'with tls', :tls => true do
-    let (:jms_config) { super.merge({'yaml_section' => 'activemq_tls',
-                                     "keystore" => fixture_path("keystore.jks"), "keystore_password" => "changeit",
+    let (:yaml_section) { 'activemq_tls' }
+    let (:jms_config) { super.merge({"keystore" => fixture_path("keystore.jks"), "keystore_password" => "changeit",
                                      "truststore" => fixture_path("keystore.jks"), "truststore_password" => "changeit"})}
 
     it_behaves_like 'a JMS output'

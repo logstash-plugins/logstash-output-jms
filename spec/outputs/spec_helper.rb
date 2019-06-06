@@ -5,8 +5,8 @@ def fixture_path(file)
   File.join(File.dirname(__FILE__),"fixtures/#{file}")
 end
 
-def retrieve_messages_from_queue
-  config = output.jms_config_from_yaml(fixture_path('jms.yml'), 'activemq')
+def retrieve_messages_from_queue(yaml_section)
+  config = output.jms_config_from_yaml(fixture_path('jms.yml'), yaml_section)
   raise "JMS Provider option:#{jms_provider} not found in jms.yml file" unless config
 
   # Consume all available messages on the queue
