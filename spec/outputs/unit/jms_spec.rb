@@ -4,7 +4,6 @@ require 'jms'
 require 'json'
 
 describe LogStash::Outputs::Jms do
-  let (:jms_config) {{'destination' => 'ExampleQueue'}}
   subject { described_class.new(jms_config)}
 
   describe 'initialization' do
@@ -13,6 +12,31 @@ describe LogStash::Outputs::Jms do
     before :each do
       allow(subject).to receive(:setup_producer)
     end
+
+    context 'with System properties' do
+      let (:jms_config) {{ 'system_properties' => system_properties, 'destination' => 'ExampleQueue'}}
+      let (:system_properties) { { 'JNDI_Connection_Retries_Per_Host' => 7,
+                                   'JNDI_Connect_Retries' => 5 }}
+
+      before :each do
+        subject.register
+      end
+
+      after :each do
+        system_properties.each do |k, v|
+          java.lang.System.clear_property(k)
+        end
+      end
+
+      it 'should populate the system properties' do
+        system_properties.each do |k,v|
+          puts "checjing property for #{k}"
+          expect(java.lang.System.get_property(k)).to_not be_nil
+          expect(java.lang.System.get_property(k)).to eq(v.to_s)
+        end
+      end
+    end
+
     context 'via yaml file' do
       let (:jms_config) {{'yaml_file' => fixture_path(file), 'yaml_section' => yaml_section, 'destination' => 'ExampleQueue'}}
       context 'simple yaml configuration' do
@@ -77,6 +101,7 @@ describe LogStash::Outputs::Jms do
       end
 
     end
+
     context 'simple configuration with jndi' do
       let (:jms_config) {{
           'destination' => 'ExampleQueue',
@@ -109,6 +134,8 @@ describe LogStash::Outputs::Jms do
   end
 
   describe '#error_hash' do
+    let (:jms_config) {{'destination' => 'ExampleQueue'}}
+
     context 'should handle Java exceptions with a chain of causes' do
       let (:raised) { java.lang.Exception.new("Outer", java.lang.RuntimeException.new("middle", java.io.IOException.new("Inner")))}
 
