@@ -3,28 +3,75 @@ require 'logstash/outputs/jms'
 require 'jms'
 require 'json'
 
+
 shared_examples_for "a JMS output" do
   context 'when outputting messages' do
-    it 'should send logstash event to jms queue' do
+    let(:messages) { retrieve_messages_from_queue }
+    before :each do
       output.register
-
       output.receive(event)
+    end
+
+    it 'should send logstash event to jms queue' do
       # Check the message is correct on the queue.
       # Create config file to pass to JMS Connection
-      config = output.jms_config_from_yaml(fixture_path('jms.yml'), 'activemq')
-      raise "JMS Provider option:#{jms_provider} not found in jms.yml file" unless config
-
-      # Consume all available messages on the queue
-      messages = []
-      JMS::Connection.session(config) do |session|
-        session.consume(:queue_name => 'ExampleQueue', :timeout => 1000) {|message| messages << message }
-      end
       expect(messages.size).to eql 1
       expect(messages.first.data).to include "hello"
     end
-  end
 
+    context 'should set set delivery mode correctly' do
+      %w(persistent non_persistent).each do |delivery_mode|
+        context "when the delivery mode is #{delivery_mode}" do
+          let(:jms_config) { super.merge('delivery_mode' => delivery_mode) }
+          it "should set the delivery mode to #{delivery_mode}" do
+            # Check the message is correct on the queue.
+            # Create config file to pass to JMS Connection
+            messages = retrieve_messages_from_queue
+            expect(messages.size).to eql 1
+            expect(messages.first.jms_delivery_mode_sym).to eql(delivery_mode.to_sym)
+          end
+        end
+      end
+    end
+
+    context 'Time to live is not set' do
+      it "jms_expiration should be 0" do
+        # Check the message is correct on the queue.
+        # Create config file to pass to JMS Connection
+        messages = retrieve_messages_from_queue
+        expect(messages.size).to eql 1
+        expect(messages.first.jms_expiration).to eql(0)
+      end
+    end
+
+    context 'Time to live is set' do
+      let(:jms_config) { super.merge('time_to_live' => 20000) }
+
+      it "jms_expiration should be jms_timestamp + ttl" do
+        # Check the message is correct on the queue.
+        # Create config file to pass to JMS Connection
+        messages = retrieve_messages_from_queue
+        expect(messages.size).to eql 1
+        expect(messages.first.jms_expiration).to eql(messages.first.jms_timestamp + 20000)
+      end
+    end
+
+
+    context 'Priority is set' do
+      let(:jms_config) { super.merge('priority' => 8) }
+
+      it "jms_priority header should be set" do
+        # Check the message is correct on the queue.
+        # Create config file to pass to JMS Connection
+        messages = retrieve_messages_from_queue
+        expect(messages.size).to eql 1
+        expect(messages.first.jms_priority).to eql(8)
+      end
+    end
+
+  end
 end
+
 
 describe "outputs/jms", :integration => true do
   let (:jms_config) {{'yaml_file' => fixture_path("jms.yml"), 'yaml_section' => 'activemq', 'destination' => 'ExampleQueue'}}
@@ -48,12 +95,12 @@ describe "outputs/jms", :integration => true do
     it_behaves_like 'a JMS output'
   end
 
-  # context 'with tls', :tls => true do
-  #   let (:jms_config) { super.merge({'yaml_section' => 'activemq_tls',
-  #                                    "keystore" => fixture_path("keystore.jks"), "keystore_password" => "changeit",
-  #                                    "truststore" => fixture_path("keystore.jks"), "truststore_password" => "changeit"})}
-  # 
-  #   it_behaves_like 'a JMS output'
-  # end
+  context 'with tls', :tls => true do
+    let (:jms_config) { super.merge({'yaml_section' => 'activemq_tls',
+                                     "keystore" => fixture_path("keystore.jks"), "keystore_password" => "changeit",
+                                     "truststore" => fixture_path("keystore.jks"), "truststore_password" => "changeit"})}
+
+    it_behaves_like 'a JMS output'
+  end
 
 end

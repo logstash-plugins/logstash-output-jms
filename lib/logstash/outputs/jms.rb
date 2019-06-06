@@ -61,6 +61,9 @@ config :jndi_name, :validate => :string
 # contains details on how to connect to JNDI server
 config :jndi_context, :validate => :hash
 
+config :time_to_live, :validate => :number
+config :priority, :validate => :number
+
 config :system_properties, :validate => :hash
 
 config :keystore, :validate => :path
@@ -86,7 +89,6 @@ config :truststore_password, :validate => :password
     load_system_properties if @system_properties
 
     @jms_config = jms_config
-
     logger.debug("JMS Config being used ", :context => obfuscate_jms_config(@jms_config))
 
     setup_producer
@@ -117,8 +119,9 @@ config :truststore_password, :validate => :password
 
     # If a delivery mode has been specified, inform the producer
     @producer.delivery_mode_sym = @delivery_mode.to_sym unless @delivery_mode.nil?
+    @producer.time_to_live = @time_to_live if @time_to_live
+    @producer.priority = @priority if @priority
   end
-
 # def register
 
 
@@ -131,9 +134,9 @@ config :truststore_password, :validate => :password
   end
 
   def jms_config
-      return jms_config_from_yaml(@yaml_file, @yaml_section) if @yaml_file
-      return jms_config_from_jndi if @jndi_name
-      jms_config_from_configuration
+    return jms_config_from_yaml(@yaml_file, @yaml_section) if @yaml_file
+    return jms_config_from_jndi if @jndi_name
+    jms_config_from_configuration
   end
 
   def jms_config_from_configuration
