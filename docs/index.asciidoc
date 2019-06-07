@@ -35,10 +35,14 @@ JMS configurations can be done either entirely in the Logstash configuration fil
 ==== Common Configuration Options
 
 Here is a config example to write to a queue:
+
+[source,ruby]
+--------------------------------------------------
+output {
  jms {
     broker_url => 'ssl://localhost:61617' <1>
     destination => "myqueue" <2>
-    pub-sub => false <3>
+    pub_sub => false <3>
     username => <4>
     password => <4>
     keystore => <5>
@@ -46,6 +50,8 @@ Here is a config example to write to a queue:
     truststore => <5>
     truststore_password => <5>
   }
+}
+--------------------------------------------------
 
 <1> Url of the broker to connect to. Please consult your JMS provider documentation for the exact syntax to use
     here, including how to enable failover.
@@ -62,14 +68,17 @@ Here is a config example to write to a queue:
 ===== Sample Configuration for Non-JNDI Connection
 [source,ruby]
 --------------------------------------------------
- jms {
-    destination => "myqueue" <1>
-    pub-sub => false <1>
-    username => xxxx <2>
-    password => xxxx <2>
-    factory => org.apache.activemq.ActiveMQConnectionFactory <3>
-    require_jars => ['/usr/share/jms/activemq-all-5.15.9.jar','/usr/share/jms/log4j-1.2.17.jar'] <4>
-  }
+ output {
+    jms {
+        broker_url => 'ssl://localhost:61617' <1>
+        destination => "myqueue" <1>
+        pub_sub => false <1>
+        username => xxxx <2>
+        password => xxxx <2>
+        factory => org.apache.activemq.ActiveMQConnectionFactory <3>
+        require_jars => ['/usr/share/jms/activemq-all-5.15.9.jar','/usr/share/jms/log4j-1.2.17.jar'] <4>
+    }
+ }
 --------------------------------------------------
 
 <1> Configuration settings
@@ -82,21 +91,23 @@ Here is a config example to write to a queue:
 ===== Sample Configuration for JNDI Connection
 [source,ruby]
 --------------------------------------------------
- jms {
-    destination => "myqueue" <1>
-    pub-sub => false <1>
-    jndi_name => /jms/cf/default <2>
-    jndi_context => {
-     'java.naming.factory.initial' => com.solacesystems.jndi.SolJNDIInitialContextFactory
-     'java.naming.security.principal' => solace-cloud-client@user
-     'java.naming.provider.url' => tcp://address.messaging.solace.cloud:20608
-     'java.naming.security.credentials' => verysecret
+ output {
+    jms {
+       destination => "myqueue" <1>
+       pub_sub => false <1>
+       jndi_name => /jms/cf/default <2>
+       jndi_context => {
+          'java.naming.factory.initial' => com.solacesystems.jndi.SolJNDIInitialContextFactory
+          'java.naming.security.principal' => solace-cloud-client@user
+          'java.naming.provider.url' => tcp://address.messaging.solace.cloud:20608
+          'java.naming.security.credentials' => verysecret
     } <3>
-    require_jars=> ['/usr/share/jms/commons-lang-2.6.jar',
-                    '/usr/share/jms/sol-jms-10.5.0.jar',
-                    '/usr/share/jms/geronimo-jms_1.1_spec-1.1.1.jar',
-                    '/usr/share/jms/commons-lang-2.6.jar]' <4>
+       require_jars=> ['/usr/share/jms/commons-lang-2.6.jar',
+                      '/usr/share/jms/sol-jms-10.5.0.jar',
+                      '/usr/share/jms/geronimo-jms_1.1_spec-1.1.1.jar',
+                     '/usr/share/jms/commons-lang-2.6.jar]' <4>
   }
+}
 --------------------------------------------------
 
 <1> Configuration settings
@@ -119,14 +130,16 @@ How you configure the `yaml` file depends on whether the connection is via JNDI:
 
 [source,ruby]
 --------------------------------------------------
- jms {
+output{
+  jms {
     destination => "myqueue" <1>
-    pub-sub => false <1>
+    pub_sub => false <1>
     username => xxxx <2>
     password => xxxx <2>
     yaml_file => "~/jms.yml"  <3>
     yaml_section => "mybroker" <4>
   }
+}
 --------------------------------------------------
 
 
@@ -142,21 +155,23 @@ How you configure the `yaml` file depends on whether the connection is via JNDI:
 --------------------------------------------------
 mybroker: <1>
   :factory: org.apache.activemq.ActiveMQConnectionFactory <2>
-  :send_timeout: 30000 <3>
-  :stats_enabled: true <3>
-  :require_jars: <4>
+  :broker_url: 'ssl://localhost:61617' <3>
+  :send_timeout: 30000 <4>
+  :stats_enabled: true <4>
+  :require_jars: <5>
     - /usr/share/jms/activemq-all-5.15.9.jar
     - /usr/share/jms/log4j-1.2.17.jar
 --------------------------------------------------
 
  <1> Section name for this broker definition. This should be the value of `yaml_section` in the logstash configuration file.
  <2> Full name (including package name) of Java connection factory used to create a connection with your JMS provider.
- <3> Implementation specific configuration parameters to be used with the connection factory specified
+ <3> url of the message broker(s) to connect to.
+ <4> Implementation specific configuration parameters to be used with the connection factory specified
    in <2>. Each JMS Provider will have its own set of parameters that can be used here. These parameters are mapped to
    `set` methods on the provided connection factory, and can be supplied in either 'snake' or 'camel' case. In <3> above,
    the `send_timeout` property will call the `setSendTimeout` on the supplied connection factory. See your JMS provider
    documentation for implementation specific details.
- <4> List of jars required by the JMS provider. Paths should be the fully qualified location of all jar files required
+ <5> List of jars required by the JMS provider. Paths should be the fully qualified location of all jar files required
      by the JMS provider. This list may also include dependent jars as well as specific jars from the JMS provider.
 
 ===== Sample Configuration for JNDI Connection
@@ -168,12 +183,14 @@ The JMS plugin also supports connecting to brokers using JNDI. Configuration can
 
 [source,ruby]
 --------------------------------------------------
+output {
  jms {
     destination => "myqueue" <1>
-    pub-sub => false <1>
+    pub_sub => false <1>
     yaml_file => "~/jms.yml"  <2>
     yaml_section => "mybroker" <3>
   }
+}
 --------------------------------------------------
 
 <1> Configuration settings
@@ -214,8 +231,11 @@ In order to communicate with a JMS broker, the plugin must load the jar files ne
 This can be set in the yaml file, or in the main configuration if a yaml file is not necessary. The `require_jars`
   setting should include the full path for each jar file required for the client. Eg
 
-logstash configuration:
+Logstash configuration:
 
+[source,ruby]
+--------------------------------------------------
+output{
   jms {
           :
           [snip]
@@ -223,8 +243,9 @@ logstash configuration:
                       '/usr/share/jms/sol-jms-10.5.0.jar',
                       '/usr/share/jms/geronimo-jms_1.1_spec-1.1.1.jar',
                       '/usr/share/jms/commons-lang-2.6.jar']
-
   }
+}
+--------------------------------------------------
 
 ===== Setting System Properties
 
@@ -367,7 +388,7 @@ Sets the producer's default priority. The default value will be whatever is prov
   * Value type is <<boolean,boolean>>
   * Default value is `false`
 
-If pub-sub (topic) style should be used or not.
+If pub_sub (topic) style should be used or not.
 Mandatory
 
 [id="plugins-{type}s-{plugin}-require_jars"]

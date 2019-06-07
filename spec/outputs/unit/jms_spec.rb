@@ -30,7 +30,6 @@ describe LogStash::Outputs::Jms do
 
       it 'should populate the system properties' do
         system_properties.each do |k,v|
-          puts "checjing property for #{k}"
           expect(java.lang.System.get_property(k)).to_not be_nil
           expect(java.lang.System.get_property(k)).to eq(v.to_s)
         end
