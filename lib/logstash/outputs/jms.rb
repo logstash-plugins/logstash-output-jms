@@ -200,9 +200,7 @@ config :truststore_password, :validate => :password
   def error_hash(e)
     error_hash = {:exception => e.class.name, :exception_message => e.message, :backtrace => e.backtrace}
     root_cause = get_root_cause(e)
-    unless root_cause.nil?
-      error_hash.merge!(:root_cause => root_cause)
-    end
+    error_hash[:root_cause] = root_cause unless root_cause.nil?
     error_hash
   end
 

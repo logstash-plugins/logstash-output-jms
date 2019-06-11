@@ -450,7 +450,7 @@ Username to connect to JMS provider with
   * Value type is <<string,string>>
   * There is no default value for this setting.
 
-Yaml config file
+Full path to `yaml` configuration file.
 
 [id="plugins-{type}s-{plugin}-yaml_section"]
 ===== `yaml_section` 
@@ -458,8 +458,8 @@ Yaml config file
   * Value type is <<string,string>>
   * There is no default value for this setting.
 
-Yaml config file section name
-For some known examples, see: [Example jms.yml](https://github.com/reidmorrison/jruby-jms/blob/master/examples/jms.yml)
+Yaml config file section name. See earlier in this documentation for some examples, plus
+[Example jms.yml](https://github.com/reidmorrison/jruby-jms/blob/master/examples/jms.yml)
 
 
 
