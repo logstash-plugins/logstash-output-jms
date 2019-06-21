@@ -56,6 +56,10 @@ These configurations use the Logstash Configuration Only
         truststore => '/Users/logstash-user/security/truststore.jks'
         truststore_password => 'yet_another_secret'
         require_jars => ['/usr/share/jms/activemq-all-5.15.9.jar','/usr/share/jms/log4j-1.2.17.jar'] <7>
+        # Connection factory specific settings
+        factory_settings => { <8>
+          set_timeout => 10
+        }
     }
  }
 --------------------------------------------------
@@ -69,7 +73,8 @@ These configurations use the Logstash Configuration Only
 <6> Keystore and Truststore to use when connecting to the JMS provider, if required.
 <7> List of jars required by the JMS provider. Paths should be the fully qualified location of all jar files required
      by the JMS provider. This list may also include dependent jars as well as specific jars from the JMS provider.
-
+<8> Additional settings that are set directly on the ConnectionFactory object can be added here. See you JMS provider
+     documentation for details.
 
 ===== Logstash Configuration for JNDI Connection
 
@@ -271,6 +276,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-delivery_mode>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-destination>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-factory>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-factory_settings>> |<<hash,hash>>|No
 | <<plugins-{type}s-{plugin}-jndi_context>> |<<hash,hash>>|No
 | <<plugins-{type}s-{plugin}-jndi_name>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-keystore>> |a valid filesystem path|No
@@ -327,6 +333,18 @@ Mandatory
   * There is no default value for this setting.
 
 Full name (including package name) of Java connection factory used to create a connection with your JMS provider.
+
+[id="plugins-{type}s-{plugin}-factory_settings"]
+===== `factory_settings`
+
+  * Value type is <<hash,hash>>
+  * There is no default value for this setting.
+
+Hash of implementation specific configuration values to set on the connection factory of the JMS provider. Each JMS
+ Provider will have its own set of parameters that can be used here. These parameters are mapped to `set` methods on
+ the provided connection factory, and can be supplied in either 'snake' or 'camel' case. For example, a hash including
+ `send_timeout => 30000` would call `setSendTimeout(30000)` on the supplied connection factory.
+ See your JMS provider documentation for implementation specific details.
 
 [id="plugins-{type}s-{plugin}-jndi_context"]
 ===== `jndi_context` 

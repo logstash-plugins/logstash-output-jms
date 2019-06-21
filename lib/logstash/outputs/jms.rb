@@ -51,7 +51,7 @@ config :factory, :validate => :string
 # Username to connect to JMS provider with
 config :username, :validate => :string
 # Password to use when connecting to the JMS provider
-config :password, :validate => :string
+config :password, :validate => :password
 # Url to use when connecting to the JMS provider
 config :broker_url, :validate => :string
 
@@ -65,6 +65,9 @@ config :time_to_live, :validate => :number
 config :priority, :validate => :number
 
 config :system_properties, :validate => :hash
+
+# Factory settings
+config :factory_settings, :validate => :hash
 
 config :keystore, :validate => :path
 config :keystore_password, :validate => :password
@@ -140,14 +143,30 @@ config :truststore_password, :validate => :password
   end
 
   def jms_config_from_configuration
-    {
+    config = {
         :require_jars => @require_jars,
         :factory => @factory,
         :username => @username,
-        :password => @password,
         :broker_url => @broker_url,
         :url => @broker_url # "broker_url" is named "url" with Oracle AQ
     }
+
+    config[:password] = @password.value unless @password.nil?
+    correct_factory_hash(config, @factory_settings) unless @factory_settings.nil?
+    config
+  end
+
+  def correct_factory_hash(original, value)
+    if hash.is_a?(String)
+      return true if value.downcase == "true"
+      return false if value.downcase == "false"
+    end
+
+    if value.is_a?(Hash)
+      value.each { |key, value| original[key.to_sym] = correct_factory_hash({}, value) }
+      return original
+    end
+    value
   end
 
   def jms_config_from_jndi
