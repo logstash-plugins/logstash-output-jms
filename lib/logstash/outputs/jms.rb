@@ -51,7 +51,7 @@ config :factory, :validate => :string
 # Username to connect to JMS provider with
 config :username, :validate => :string
 # Password to use when connecting to the JMS provider
-config :password, :validate => :string
+config :password, :validate => :password
 # Url to use when connecting to the JMS provider
 config :broker_url, :validate => :string
 
@@ -60,6 +60,20 @@ config :jndi_name, :validate => :string
 # Mandatory if jndi lookup is being used,
 # contains details on how to connect to JNDI server
 config :jndi_context, :validate => :hash
+
+config :time_to_live, :validate => :number
+config :priority, :validate => :number
+
+config :system_properties, :validate => :hash
+
+# Factory settings
+config :factory_settings, :validate => :hash
+
+config :keystore, :validate => :path
+config :keystore_password, :validate => :password
+config :truststore, :validate => :path
+config :truststore_password, :validate => :password
+
 
 # :yaml_file, :factory and :jndi_name are mutually exclusive, both cannot be supplied at the
 # same time. The priority order is :yaml_file, then :jndi_name, then :factory
@@ -74,40 +88,33 @@ config :jndi_context, :validate => :hash
     require "jms"
     @connection = nil
 
-    if @yaml_file
-      @jms_config = YAML.load_file(@yaml_file)[@yaml_section]
+    load_ssl_properties
+    load_system_properties if @system_properties
 
-    elsif @jndi_name
-      @jms_config = {
-        :require_jars => @require_jars,
-        :jndi_name => @jndi_name,
-        :jndi_context => @jndi_context}
+    @jms_config = jms_config
+    logger.debug("JMS Config being used ", :context => obfuscate_jms_config(@jms_config))
 
-    elsif @factory
-      @jms_config = {
-        :require_jars => @require_jars,
-        :factory => @factory,
-        :username => @username,
-        :password => @password,
-        :broker_url => @broker_url,
-        :url => @broker_url # "broker_url" is named "url" with Oracle AQ
-        }
-    end
+    setup_producer
+  end
 
-    @logger.debug("JMS Config being used", :context => @jms_config)
+  def setup_producer
     begin
       # The jruby-jms adapter dynamically loads the Java classes that it extends, and may fail
       @connection = JMS::Connection.new(@jms_config)
     rescue NameError => ne
       if @require_jars && !@require_jars.empty?
-        logger.warn('The `require_jars` directive was provided, but may not correctly map to a JNS provider', :require_jars => @require_jars)
+        logger.warn('The `require_jars` directive was provided, but may not correctly map to a JMS provider', :require_jars => @require_jars)
       end
       logger.error('Failed to load JMS Connection, likely because a JMS Provider is not on the Logstash classpath '+
-                   'or correctly specified by the plugin\'s `require_jars` directive', :exception => ne.message, :backtrace => ne.backtrace)
-      fail(LogStash::PluginLoadingError, 'JMS Input failed to load, likely because a JMS provider was not available')
+                       'or correctly specified by the plugin\'s `require_jars` directive', :exception => ne.message, :backtrace => ne.backtrace)
+      fail(LogStash::PluginLoadingError, 'JMS Output plugin failed to load, likely because a JMS provider is not on the Logstash classpath')
+    rescue => e
+      logger.error("Unable to connect to JMS Provider. Retrying", error_hash(e))
+      sleep(5)
+      retry
     end
 
-    @session = @connection.create_session()
+    @session = @connection.create_session
 
     # Cache the producer since we should keep reusing this one.
     destination_key = @pub_sub ? :topic_name : :queue_name
@@ -115,23 +122,125 @@ config :jndi_context, :validate => :hash
 
     # If a delivery mode has been specified, inform the producer
     @producer.delivery_mode_sym = @delivery_mode.to_sym unless @delivery_mode.nil?
+    @producer.time_to_live = @time_to_live if @time_to_live
+    @producer.priority = @priority if @priority
+  end
+# def register
 
-  end # def register
+
+  def obfuscate_jms_config(config)
+    config.each_with_object({}) { |(k, v), h| h[k] = obfuscatable?(k) ? 'xxxxx' : v }
+  end
+
+  def obfuscatable?(setting)
+    [:password, :keystore_password, :truststore_password].include?(setting)
+  end
+
+  def jms_config
+    return jms_config_from_yaml(@yaml_file, @yaml_section) if @yaml_file
+    return jms_config_from_jndi if @jndi_name
+    jms_config_from_configuration
+  end
+
+  def jms_config_from_configuration
+    config = {
+        :require_jars => @require_jars,
+        :factory => @factory,
+        :username => @username,
+        :broker_url => @broker_url,
+        :url => @broker_url # "broker_url" is named "url" with Oracle AQ
+    }
+
+    config[:password] = @password.value unless @password.nil?
+    correct_factory_hash(config, @factory_settings) unless @factory_settings.nil?
+    config
+  end
+
+  def correct_factory_hash(original, value)
+    if hash.is_a?(String)
+      return true if value.downcase == "true"
+      return false if value.downcase == "false"
+    end
+
+    if value.is_a?(Hash)
+      value.each { |key, value| original[key.to_sym] = correct_factory_hash({}, value) }
+      return original
+    end
+    value
+  end
+
+  def jms_config_from_jndi
+    {
+        :require_jars => @require_jars,
+        :jndi_name => @jndi_name,
+        :jndi_context => @jndi_context
+    }
+  end
+
+  def jms_config_from_yaml(file, section)
+    YAML.load_file(file)[section]
+  end
+
+  def load_ssl_properties
+    java.lang.System.setProperty("javax.net.ssl.keyStore", @keystore) if @keystore
+    java.lang.System.setProperty("javax.net.ssl.keyStorePassword", @keystore_password.value) if @keystore_password
+    java.lang.System.setProperty("javax.net.ssl.trustStore", @truststore) if @truststore
+    java.lang.System.setProperty("javax.net.ssl.trustStorePassword", @truststore_password.value) if @truststore_password
+  end
+
+  def load_system_properties
+    @system_properties.each do |key,value|
+      java.lang.System.set_property(key,value.to_s)
+    end
+  end
 
   def receive(event)
-      
-
       begin
-        @producer.send(@session.message(event.to_json))
-      rescue => e
-        @logger.warn("Failed to send event to JMS", :event => event, :exception => e,
-                     :backtrace => e.backtrace)
+        mess = @session.message(event.to_json)
+        @producer.send(mess)
+      rescue Object => e
+        logger.warn("Failed to send event to JMS", {:event => event}.merge(error_hash(e)))
+        cleanup_producer
+        setup_producer
+        retry
       end
   end # def receive
 
+  def cleanup_producer
+    @producer.close unless @producer.nil?
+    @session.close unless @session.nil?
+    @connection.close unless @connection.nil?
+  end
+
   def close
-    @producer.close()
-    @session.close()
-    @connection.close()
+    cleanup_producer
+  end
+
+  def error_hash(e)
+    error_hash = {:exception => e.class.name, :exception_message => e.message, :backtrace => e.backtrace}
+    root_cause = get_root_cause(e)
+    error_hash[:root_cause] = root_cause unless root_cause.nil?
+    error_hash
+  end
+
+  # JMS Exceptions can contain chains of Exceptions, making it difficult to determine the root cause of an error
+  # without knowing the actual root cause behind the problem.
+  # This method protects against Java Exceptions where the cause methods loop. If there is a cause loop, the last
+  # cause exception before the loop is detected will be returned, along with an entry in the root_cause hash indicating
+  # that an exception loop was detected. This will mean that the root cause may not be the actual root cause of the
+  # problem, and further investigation is required
+  def get_root_cause(e)
+    return nil unless e.respond_to?(:get_cause) && !e.get_cause.nil?
+    cause = e
+    slow_pointer = e
+    # Use a slow pointer to avoid cause loops in Java Exceptions
+    move_slow = false
+    until (next_cause = cause.get_cause).nil?
+      cause = next_cause
+      return {:exception => cause.class.name, :exception_message => cause.message, :exception_loop => true } if cause == slow_pointer
+      slow_pointer = slow_pointer.cause if move_slow
+      move_slow = !move_slow
+    end
+    {:exception => cause.class.name, :exception_message => cause.message }
   end
 end # class LogStash::Output::Jms
