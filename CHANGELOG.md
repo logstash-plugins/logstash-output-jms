@@ -1,3 +1,6 @@
+## 3.0.5
+  - Change `password` config type to `password` to prevent leaking in the debug logs [#15](https://github.com/logstash-plugins/logstash-output-jms/pull/15) 
+
 ## 3.0.4
   - Fixes an issue where `delivery_mode` directive was silently ignored.
 

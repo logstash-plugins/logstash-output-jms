@@ -51,7 +51,7 @@ config :factory, :validate => :string
 # Username to connect to JMS provider with
 config :username, :validate => :string
 # Password to use when connecting to the JMS provider
-config :password, :validate => :string
+config :password, :validate => :password
 # Url to use when connecting to the JMS provider
 config :broker_url, :validate => :string
 
@@ -88,7 +88,7 @@ config :jndi_context, :validate => :hash
         :require_jars => @require_jars,
         :factory => @factory,
         :username => @username,
-        :password => @password,
+        :password => @password.nil? ? nil : @password.value,
         :broker_url => @broker_url,
         :url => @broker_url # "broker_url" is named "url" with Oracle AQ
         }
