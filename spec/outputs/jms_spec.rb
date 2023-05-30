@@ -34,4 +34,14 @@ describe "outputs/jms" do
       # Add code to check the message is correct on the queue.
     end
   end
+
+  describe "debugging `password`" do
+    let(:config) { jms_config.merge("password" => "$ecre&-key") }
+    it "should not show origin value" do
+
+      output = LogStash::Plugin.lookup("output", "jms").new(config)
+      expect(output.logger).to receive(:debug).with('<password>')
+      output.logger.send(:debug, output.password.to_s)
+    end
+  end
 end

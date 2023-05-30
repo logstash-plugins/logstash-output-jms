@@ -52,7 +52,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 | <<plugins-{type}s-{plugin}-factory>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-jndi_context>> |<<hash,hash>>|No
 | <<plugins-{type}s-{plugin}-jndi_name>> |<<string,string>>|No
-| <<plugins-{type}s-{plugin}-password>> |<<string,string>>|No
+| <<plugins-{type}s-{plugin}-password>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-pub_sub>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-require_jars>> |<<array,array>>|No
 | <<plugins-{type}s-{plugin}-username>> |<<string,string>>|No
@@ -119,7 +119,7 @@ Name of JNDI entry at which the Factory can be found
 [id="plugins-{type}s-{plugin}-password"]
 ===== `password` 
 
-  * Value type is <<string,string>>
+  * Value type is <<password,password>>
   * There is no default value for this setting.
 
 Password to use when connecting to the JMS provider
